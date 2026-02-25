@@ -39,4 +39,6 @@ _bmad-output/
 # Logs
 *.log
 logs/
-*.md
+
+# Sensitive keys
+vertex-key.json
