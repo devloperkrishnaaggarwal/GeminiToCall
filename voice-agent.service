@@ -1,0 +1,21 @@
+[Unit]
+Description=LiveKit Voice Agent (Gemini)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/VoiceesGemini
+ExecStart=/home/ubuntu/VoiceesGemini/venv/bin/python agent.py start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=voice-agent
+
+# Environment — set your secrets here OR use EnvironmentFile
+# EnvironmentFile=/home/ubuntu/VoiceesGemini/.env
+
+[Install]
+WantedBy=multi-user.target
