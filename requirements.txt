@@ -2,6 +2,11 @@
 livekit-agents[google]~=1.4
 livekit>=0.18.0
 
+# Google API (Calendar + Gmail for appointment booking)
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+
 # Environment & utilities
 python-dotenv>=1.0.0
 aiohttp>=3.9.0

@@ -39,3 +39,4 @@ _bmad-output/
 # Logs
 *.log
 logs/
+*.md
