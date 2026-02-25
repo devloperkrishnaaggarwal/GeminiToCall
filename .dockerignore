@@ -1,0 +1,11 @@
+.env
+.git
+__pycache__
+*.pyc
+*.log
+.agents
+.agent
+_bmad
+_bmad-output
+docs
+*.md

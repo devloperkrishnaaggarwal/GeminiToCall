@@ -1,0 +1,7 @@
+# LiveKit Agents + Google (Gemini Live API) plugin
+livekit-agents[google]~=1.4
+livekit>=0.18.0
+
+# Environment & utilities
+python-dotenv>=1.0.0
+aiohttp>=3.9.0
