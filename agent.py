@@ -1,7 +1,7 @@
 """
-Voice Call Agent — Raj Dental Care AI Receptionist
-====================================================
-Hinglish-speaking AI receptionist for Raj Dental Care, Faridabad.
+Voice Call Agent — Bright Smile Dental AI Receptionist
+=======================================================
+English-speaking AI receptionist (Sarah) for Bright Smile Dental, Austin TX.
 Books Google Calendar appointments + sends Gmail confirmations.
 
 Run with: python agent.py start
@@ -41,7 +41,7 @@ AGENT_GREETING = os.getenv("AGENT_GREETING", "Greet the caller warmly.")
 
 
 # ── Agent with Tools ──────────────────────────────────────────────────────────
-class RajDentalAgent(Agent):
+class BrightSmileAgent(Agent):
     def __init__(self, ctx: JobContext, phone_number: Optional[str] = None) -> None:
         super().__init__(instructions=AGENT_INSTRUCTIONS)
         self._ctx = ctx
@@ -120,7 +120,7 @@ class RajDentalAgent(Agent):
             )
         except Exception as exc:
             logger.error("Appointment booking failed: %s", exc)
-            return f"Booking mein technical problem aayi: {exc}. Please manually note: {patient_name}, {service}, {appointment_date} {appointment_time}, {email}."
+            return f"There was a technical problem with booking: {exc}. Please manually note: {patient_name}, {service}, {appointment_date} {appointment_time}, {email}."
 
     @llm.function_tool(description="Transfer the call to a human staff member or doctor.")
     async def transfer_call(
@@ -130,7 +130,7 @@ class RajDentalAgent(Agent):
         if destination is None:
             destination = os.getenv("DEFAULT_TRANSFER_NUMBER", "")
             if not destination:
-                return "Transfer number configured nahi hai. Caller ko manually connect karein."
+                return "Transfer number is not configured. Please connect the caller manually."
 
         if "@" not in destination:
             clean = destination.replace("tel:", "").replace("sip:", "")
@@ -147,7 +147,7 @@ class RajDentalAgent(Agent):
                 break
 
         if not participant_identity:
-            return "Transfer failed: caller identity nahi mili."
+            return "Transfer failed: caller identity not found."
 
         try:
             await self._ctx.api.sip.transfer_sip_participant(
@@ -222,7 +222,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     await session.start(
         room=ctx.room,
-        agent=RajDentalAgent(ctx, phone_number),
+        agent=BrightSmileAgent(ctx, phone_number),
         room_input_options=RoomInputOptions(
             participant_identity=participant.identity,
         ),

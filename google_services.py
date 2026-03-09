@@ -1,6 +1,6 @@
 """
-google_services.py — Google Calendar + Gmail helper for Raj Dental Care
-=======================================================================
+google_services.py — Google Calendar + Gmail helper for Bright Smile Dental
+============================================================================
 Uses OAuth2 refresh_token flow (no user interaction after first setup).
 Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN in .env
 """
@@ -48,7 +48,7 @@ def create_calendar_event(
     service_cal = build("calendar", "v3", credentials=creds, cache_discovery=False)
 
     calendar_id = os.getenv("CLINIC_CALENDAR_ID", "primary")
-    clinic_tz   = "Asia/Kolkata"
+    clinic_tz   = "America/Chicago"
 
     start_dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
     end_dt   = start_dt + timedelta(hours=1)
@@ -60,7 +60,7 @@ def create_calendar_event(
             f"Phone:   {phone}\n"
             f"Email:   {email}\n"
             f"Service: {service}\n\n"
-            f"Booked via AI Receptionist — Raj Dental Care"
+            f"Booked via AI Receptionist — Bright Smile Dental"
         ),
         "start": {"dateTime": start_dt.isoformat(), "timeZone": clinic_tz},
         "end":   {"dateTime": end_dt.isoformat(),   "timeZone": clinic_tz},
@@ -89,8 +89,8 @@ def send_confirmation_email(
     creds  = _get_credentials()
     gmail  = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
-    sender       = os.getenv("CLINIC_EMAIL", "rajdentalcare@gmail.com")
-    clinic_phone = os.getenv("CLINIC_PHONE", "+91-XXXXXXXXXX")
+    sender       = os.getenv("CLINIC_EMAIL", "brightsmile@gmail.com")
+    clinic_phone = os.getenv("CLINIC_PHONE", "+1-XXXXXXXXXX")
 
     # Format display date
     try:
@@ -102,13 +102,13 @@ def send_confirmation_email(
     html_body = f"""
     <html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto">
       <div style="background:#1a73e8;padding:20px;border-radius:8px 8px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">🦷 Raj Dental Care</h1>
-        <p style="color:#cce5ff;margin:4px 0">Faridabad, Haryana</p>
+        <h1 style="color:white;margin:0">🦷 Bright Smile Dental</h1>
+        <p style="color:#cce5ff;margin:4px 0">Austin, Texas</p>
       </div>
       <div style="padding:24px;background:#f9f9f9;border:1px solid #e0e0e0">
         <h2 style="color:#1a73e8">Appointment Confirmed! ✅</h2>
-        <p>Namaste <strong>{patient_name}</strong> ji,</p>
-        <p>Aapka appointment book ho gaya hai. Details yeh hain:</p>
+        <p>Hello <strong>{patient_name}</strong>,</p>
+        <p>Your appointment has been successfully booked. Here are the details:</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0">
           <tr style="background:#e8f0fe">
             <td style="padding:10px;font-weight:bold">Service</td>
@@ -120,11 +120,11 @@ def send_confirmation_email(
           </tr>
           <tr style="background:#e8f0fe">
             <td style="padding:10px;font-weight:bold">Clinic</td>
-            <td style="padding:10px">Raj Dental Care, Faridabad, Haryana</td>
+            <td style="padding:10px">Bright Smile Dental, 412 Congress Ave, Austin, TX 78701</td>
           </tr>
           <tr>
-            <td style="padding:10px;font-weight:bold">Timing</td>
-            <td style="padding:10px">9:00 AM – 7:00 PM (All Days)</td>
+            <td style="padding:10px;font-weight:bold">Hours</td>
+            <td style="padding:10px">Mon–Fri, 8:00 AM – 6:00 PM</td>
           </tr>
           <tr style="background:#e8f0fe">
             <td style="padding:10px;font-weight:bold">Contact</td>
@@ -132,17 +132,17 @@ def send_confirmation_email(
           </tr>
         </table>
         <p style="background:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107">
-          ⚠️ Please appointment se 10 minutes pehle aayein. Reschedule ke liye call karein.
+          ⚠️ Please arrive 10 minutes before your appointment. Call us to reschedule.
         </p>
-        <p>Dhanyavaad! Aapki healthy smile hamari priority hai 😊</p>
-        <p style="color:#888;font-size:12px">— Raj Dental Care Team</p>
+        <p>Thank you for choosing Bright Smile Dental! Your healthy smile is our priority 😊</p>
+        <p style="color:#888;font-size:12px">— Bright Smile Dental Team</p>
       </div>
     </body></html>
     """
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"✅ Appointment Confirmed — Raj Dental Care ({disp})"
-    msg["From"]    = f"Raj Dental Care <{sender}>"
+    msg["Subject"] = f"✅ Appointment Confirmed — Bright Smile Dental ({disp})"
+    msg["From"]    = f"Bright Smile Dental <{sender}>"
     msg["To"]      = patient_email
     msg.attach(MIMEText(html_body, "html"))
 

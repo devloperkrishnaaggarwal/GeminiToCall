@@ -31,7 +31,7 @@ AGENT_NAME = os.getenv("AGENT_NAME", "voice-assistant")
 OUTBOUND_TRUNK_ID = os.getenv("OUTBOUND_TRUNK_ID", "")
 CLINIC_PHONE = os.getenv("CLINIC_PHONE", "")
 
-app = FastAPI(title="Voice Agent Dashboard")
+app = FastAPI(title="Bright Smile Dental — Dashboard")
 
 app.add_middleware(
     CORSMiddleware,
