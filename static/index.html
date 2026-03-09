@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Agent Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.js"></script>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-2: #1a1a28;
+      --surface-3: #222236;
+      --border: #2a2a40;
+      --border-glow: #4f46e5;
+      --text: #e8e8f0;
+      --text-muted: #8888a8;
+      --accent: #6366f1;
+      --accent-bright: #818cf8;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.2);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.2);
+      --orange: #f59e0b;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* ── Background Gradient ───────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      padding: 32px 20px;
+    }
+
+    /* ── Header ────────────────────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .header .logo {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 32px var(--accent-glow);
+    }
+    .header .logo svg { width: 28px; height: 28px; fill: white; }
+    .header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .header p {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    /* ── Mode Tabs ─────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 4px;
+      border: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+    .tab {
+      flex: 1;
+      padding: 14px;
+      text-align: center;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      user-select: none;
+      border: none;
+      background: none;
+    }
+    .tab:hover { color: var(--text); background: var(--surface-2); }
+    .tab.active {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .tab svg { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── Panel ─────────────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      display: none;
+    }
+    .panel.active { display: block; }
+
+    /* ── Orb (voice visualizer) ────────────────────────────────────────────── */
+    .orb-container {
+      display: flex;
+      justify-content: center;
+      margin: 24px 0 32px;
+    }
+    .orb {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, var(--surface-3), var(--surface));
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.4s ease;
+    }
+    .orb svg { width: 40px; height: 40px; fill: var(--text-muted); transition: fill 0.3s; }
+    .orb.listening {
+      border-color: var(--green);
+      box-shadow: 0 0 40px var(--green-glow), 0 0 80px var(--green-glow);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .orb.listening svg { fill: var(--green); }
+    .orb.speaking {
+      border-color: var(--accent-bright);
+      box-shadow: 0 0 40px var(--accent-glow), 0 0 80px var(--accent-glow);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .orb.speaking svg { fill: var(--accent-bright); }
+    .orb.connecting {
+      border-color: var(--orange);
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.15);
+      animation: spin-border 1.5s linear infinite;
+    }
+    .orb.connecting svg { fill: var(--orange); }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    @keyframes spin-border {
+      0% { border-color: var(--orange) transparent transparent transparent; }
+      25% { border-color: transparent var(--orange) transparent transparent; }
+      50% { border-color: transparent transparent var(--orange) transparent; }
+      75% { border-color: transparent transparent transparent var(--orange); }
+      100% { border-color: var(--orange) transparent transparent transparent; }
+    }
+
+    /* ── Status ────────────────────────────────────────────────────────────── */
+    .status {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .status-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .status-text {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px var(--accent-glow);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-green {
+      background: linear-gradient(135deg, #16a34a, var(--green));
+      color: white;
+      box-shadow: 0 4px 20px var(--green-glow);
+    }
+    .btn-green:hover { transform: translateY(-1px); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, var(--red));
+      color: white;
+      box-shadow: 0 4px 20px var(--red-glow);
+    }
+    .btn-danger:hover { transform: translateY(-1px); }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ── Input ─────────────────────────────────────────────────────────────── */
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .input-group input::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .input-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    /* ── Transcript ────────────────────────────────────────────────────────── */
+    .transcript-section {
+      margin-top: 28px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    .transcript-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .transcript-log {
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--surface-3) transparent;
+    }
+    .transcript-msg {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 85%;
+      animation: fadeIn 0.3s ease;
+    }
+    .transcript-msg.agent {
+      background: var(--surface-2);
+      color: var(--text);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .transcript-msg.user {
+      background: var(--accent);
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .transcript-msg.system {
+      background: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-align: center;
+      align-self: center;
+      font-style: italic;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Call Info Card ────────────────────────────────────────────────────── */
+    .call-info {
+      text-align: center;
+      padding: 12px 0;
+    }
+    .call-info .call-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #16a34a, var(--green));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px var(--green-glow);
+    }
+    .call-info .call-icon svg { width: 32px; height: 32px; fill: white; }
+    .call-info .call-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .call-info .call-number {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .call-info .call-hint {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .call-info .call-number.clickable {
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .call-info .call-number.clickable:hover { color: var(--green); }
+    .call-info .call-number.blurred {
+      filter: blur(8px);
+      user-select: none;
+      pointer-events: none;
+    }
+    .blur-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: all 0.2s;
+    }
+    .blur-toggle:hover { border-color: var(--accent); color: var(--text); }
+    .blur-toggle svg { width: 14px; height: 14px; fill: currentColor; }
+    .call-steps {
+      text-align: left;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    .call-steps .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 10px 0;
+    }
+    .call-steps .step + .step { border-top: 1px solid var(--border); }
+    .call-steps .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .call-steps .step-text {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    /* ── Audio Bars ────────────────────────────────────────────────────────── */
+    .audio-bars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 40px;
+    }
+    .audio-bar {
+      width: 4px;
+      background: var(--accent-bright);
+      border-radius: 2px;
+      transition: height 0.1s ease;
+      height: 6px;
+    }
+    .audio-bars.active .audio-bar {
+      animation: bar-bounce 0.6s ease-in-out infinite;
+    }
+    .audio-bars.active .audio-bar:nth-child(1) { animation-delay: 0s; }
+    .audio-bars.active .audio-bar:nth-child(2) { animation-delay: 0.1s; }
+    .audio-bars.active .audio-bar:nth-child(3) { animation-delay: 0.2s; }
+    .audio-bars.active .audio-bar:nth-child(4) { animation-delay: 0.3s; }
+    .audio-bars.active .audio-bar:nth-child(5) { animation-delay: 0.15s; }
+
+    @keyframes bar-bounce {
+      0%, 100% { height: 6px; }
+      50% { height: 32px; }
+    }
+
+    /* ── Responsive ────────────────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .container { padding: 20px 16px; }
+      .panel { padding: 24px 20px; }
+      .header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg>
+      </div>
+      <h1>Voice Agent</h1>
+      <p>AI-powered receptionist demo</p>
+    </div>
+
+    <!-- Mode Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-mode="web" onclick="switchMode('web')">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg>
+        Web
+      </button>
+      <button class="tab" data-mode="call" onclick="switchMode('call')">
+        <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.36 11.36 0 0 0 .57 3.57 1 1 0 0 1-.24 1.02l-2.2 2.2z"/></svg>
+        Call
+      </button>
+    </div>
+
+    <!-- ── Web Panel ──────────────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-web">
+      <div class="orb-container">
+        <div class="orb" id="web-orb">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg>
+        </div>
+      </div>
+
+      <div class="status">
+        <div class="status-label">Status</div>
+        <div class="status-text" id="web-status">Ready to connect</div>
+      </div>
+
+      <button class="btn btn-primary" id="web-btn" onclick="toggleWeb()">
+        <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg>
+        Start Conversation
+      </button>
+
+      <div class="transcript-section" id="web-transcript-section" style="display:none">
+        <div class="transcript-header">Live Transcript</div>
+        <div class="transcript-log" id="web-transcript"></div>
+      </div>
+    </div>
+
+    <!-- ── Call Panel ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-call">
+      <div class="call-info">
+        <div class="call-icon">
+          <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.36 11.36 0 0 0 .57 3.57 1 1 0 0 1-.24 1.02l-2.2 2.2z"/></svg>
+        </div>
+        <div class="call-label">Call the AI agent</div>
+        <div class="call-number clickable blurred" id="call-number" onclick="dialNumber()">Loading...</div>
+        <button class="blur-toggle" id="blur-toggle" onclick="toggleBlur()">
+          <svg id="blur-icon-show" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <svg id="blur-icon-hide" viewBox="0 0 24 24" style="display:none"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46A11.8 11.8 0 0 0 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+          <span id="blur-text">Show number</span>
+        </button>
+        <div class="call-hint">Dial this number from your phone to speak with the AI receptionist live.</div>
+
+        <a id="call-tel-link" style="display:none; text-decoration:none;">
+          <button class="btn btn-green">
+            <svg viewBox="0 0 24 24"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24 11.36 11.36 0 0 0 3.57.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11.36 11.36 0 0 0 .57 3.57 1 1 0 0 1-.24 1.02l-2.2 2.2z"/></svg>
+            Call Now
+          </button>
+        </a>
+      </div>
+
+      <div class="call-steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Dial the number above from any phone</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">The AI receptionist will answer and greet you</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">Have a natural conversation — ask about services, book an appointment, or just chat</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Powered by LiveKit + Gemini
+    </div>
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    let room = null;
+    let webConnected = false;
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    function switchMode(mode) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.tab[data-mode="${mode}"]`).classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${mode}`).classList.add('active');
+    }
+
+    // ── Web Mode ──────────────────────────────────────────────────────────────
+    async function toggleWeb() {
+      if (webConnected) {
+        disconnectWeb();
+      } else {
+        await connectWeb();
+      }
+    }
+
+    async function connectWeb() {
+      const btn = document.getElementById('web-btn');
+      const orb = document.getElementById('web-orb');
+      const status = document.getElementById('web-status');
+
+      btn.disabled = true;
+      orb.className = 'orb connecting';
+      status.textContent = 'Connecting...';
+
+      try {
+        // Get token from backend
+        const res = await fetch('/api/web-session', { method: 'POST' });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Failed to create session');
+        }
+        const data = await res.json();
+
+        // Connect to LiveKit
+        room = new LivekitClient.Room({
+          audioCaptureDefaults: { autoGainControl: true, noiseSuppression: true, echoCancellation: true },
+          adaptiveStream: true,
+          dynacast: true,
+        });
+
+        // Track events for transcript
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          if (track.kind === 'audio') {
+            const el = track.attach();
+            el.id = 'agent-audio';
+            document.body.appendChild(el);
+            orb.className = 'orb speaking';
+            status.textContent = 'Agent is speaking';
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => {
+          const agentSpeaking = speakers.some(s => s.identity !== room.localParticipant.identity);
+          const userSpeaking = speakers.some(s => s.identity === room.localParticipant.identity);
+
+          if (agentSpeaking) {
+            orb.className = 'orb speaking';
+            status.textContent = 'Agent is speaking';
+          } else if (userSpeaking) {
+            orb.className = 'orb listening';
+            status.textContent = 'Listening to you';
+          } else {
+            orb.className = 'orb listening';
+            status.textContent = 'Listening...';
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.DataReceived, (payload, participant) => {
+          try {
+            const msg = JSON.parse(new TextDecoder().decode(payload));
+            if (msg.text) {
+              const isAgent = participant && participant.identity !== room.localParticipant.identity;
+              addTranscript(msg.text, isAgent ? 'agent' : 'user');
+            }
+          } catch {}
+        });
+
+        room.on(LivekitClient.RoomEvent.TranscriptionReceived, (segments, participant) => {
+          if (!segments || segments.length === 0) return;
+          const text = segments.map(s => s.text).join(' ');
+          if (!text.trim()) return;
+          const isAgent = participant && participant.identity !== room.localParticipant.identity;
+          // Use segment ID for dedup — update existing or add new
+          const segId = segments[0].id || Date.now();
+          const isFinal = segments[segments.length - 1].final;
+          updateTranscript(segId, text, isAgent ? 'agent' : 'user', isFinal);
+        });
+
+        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+          disconnectWeb();
+        });
+
+        await room.connect(data.url, data.token);
+
+        // Publish microphone
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        webConnected = true;
+        orb.className = 'orb listening';
+        status.textContent = 'Connected — speak now';
+        btn.disabled = false;
+        btn.className = 'btn btn-danger';
+        btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg> End Conversation`;
+
+        document.getElementById('web-transcript-section').style.display = 'block';
+        addTranscript('Session connected', 'system');
+
+      } catch (err) {
+        console.error('Connection error:', err);
+        orb.className = 'orb';
+        status.textContent = 'Connection failed';
+        btn.disabled = false;
+        addTranscript(`Error: ${err.message}`, 'system');
+      }
+    }
+
+    function disconnectWeb() {
+      if (room) {
+        room.disconnect();
+        room = null;
+      }
+      // Remove any attached audio elements
+      const audioEl = document.getElementById('agent-audio');
+      if (audioEl) audioEl.remove();
+
+      webConnected = false;
+      const orb = document.getElementById('web-orb');
+      const status = document.getElementById('web-status');
+      const btn = document.getElementById('web-btn');
+
+      orb.className = 'orb';
+      status.textContent = 'Disconnected';
+      btn.className = 'btn btn-primary';
+      btn.disabled = false;
+      btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg> Start Conversation`;
+
+      addTranscript('Session ended', 'system');
+    }
+
+    // ── Transcript helpers ────────────────────────────────────────────────────
+    const transcriptEls = {};
+
+    function addTranscript(text, type) {
+      const log = document.getElementById('web-transcript');
+      const div = document.createElement('div');
+      div.className = `transcript-msg ${type}`;
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateTranscript(id, text, type, isFinal) {
+      const log = document.getElementById('web-transcript');
+      const key = `${type}-${id}`;
+
+      if (transcriptEls[key]) {
+        transcriptEls[key].textContent = text;
+        if (isFinal) {
+          transcriptEls[key].style.opacity = '1';
+          delete transcriptEls[key];
+        }
+      } else {
+        const div = document.createElement('div');
+        div.className = `transcript-msg ${type}`;
+        div.textContent = text;
+        if (!isFinal) div.style.opacity = '0.7';
+        log.appendChild(div);
+        if (!isFinal) {
+          transcriptEls[key] = div;
+        }
+        log.scrollTop = log.scrollHeight;
+      }
+    }
+
+    // ── Call Mode (Inbound) ────────────────────────────────────────────────────
+    let clinicPhone = '';
+
+    function formatPhone(phone) {
+      // Format +911171366945 → +91 11713 66945 or +14155551234 → +1 (415) 555-1234
+      if (phone.startsWith('+1') && phone.length === 12) {
+        return `+1 (${phone.slice(2,5)}) ${phone.slice(5,8)}-${phone.slice(8)}`;
+      }
+      // Generic: add spaces for readability
+      return phone.replace(/(\+\d{1,3})(\d+)/, '$1 $2').replace(/(\d{5})(\d+)/, '$1 $2');
+    }
+
+    let numberVisible = false;
+
+    function toggleBlur() {
+      const el = document.getElementById('call-number');
+      const showIcon = document.getElementById('blur-icon-show');
+      const hideIcon = document.getElementById('blur-icon-hide');
+      const label = document.getElementById('blur-text');
+      numberVisible = !numberVisible;
+      if (numberVisible) {
+        el.classList.remove('blurred');
+        showIcon.style.display = 'none';
+        hideIcon.style.display = '';
+        label.textContent = 'Hide number';
+      } else {
+        el.classList.add('blurred');
+        showIcon.style.display = '';
+        hideIcon.style.display = 'none';
+        label.textContent = 'Show number';
+      }
+    }
+
+    function dialNumber() {
+      if (clinicPhone) window.location.href = `tel:${clinicPhone}`;
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        clinicPhone = config.clinicPhone || '';
+        const el = document.getElementById('call-number');
+        const link = document.getElementById('call-tel-link');
+        if (clinicPhone) {
+          el.textContent = formatPhone(clinicPhone);
+          link.href = `tel:${clinicPhone}`;
+          link.style.display = '';
+        } else {
+          el.textContent = 'Not configured';
+          el.classList.remove('clickable');
+        }
+      } catch {}
+    }
+
+    // Load config on page load
+    loadConfig();
+  </script>
+</body>
+</html>
