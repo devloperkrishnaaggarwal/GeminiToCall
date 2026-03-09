@@ -42,3 +42,13 @@ logs/
 
 # Sensitive keys
 vertex-key.json
+
+# Utility / setup scripts (not needed in production)
+check_trunks.py
+fix_inbound.py
+get_refresh_token.py
+google_auth_setup.py
+list_sip_methods.py
+make_call.py
+setup_trunk.py
+test_api.py
